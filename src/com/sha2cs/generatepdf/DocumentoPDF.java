@@ -24,11 +24,11 @@ import javax.imageio.ImageIO;
  *
  * <pre>
  * try {
- *     File pdf = new DocumentoPDF("Ficha de usuario")
- *             .imagen(usuario.getRutaFoto())
- *             .campo("Nombre", usuario.getNombre())
- *             .campo("Correo", usuario.getCorreo())
- *             .guardar("usuario-" + usuario.getId() + ".pdf");
+ *     DocumentoPDF documento = new DocumentoPDF("Ficha de usuario");
+ *     documento.imagen(usuario.getRutaFoto());
+ *     documento.campo("Nombre", usuario.getPrimerNombre());
+ *     documento.campo("Correo", usuario.getCorreo());
+ *     File pdf = documento.guardar("usuario-" + usuario.getId() + ".pdf");
  * } catch (IOException e) {
  *     JOptionPane.showMessageDialog(this, "No se pudo generar el PDF: " + e.getMessage());
  * }

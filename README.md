@@ -85,7 +85,15 @@ La carpeta `lib/` con el `.jar` **se sube al repositorio** del proyecto. Sin ell
 | `.parrafo(texto)` | Agrega un párrafo. Las líneas largas se ajustan al ancho de la página. |
 | `.guardar(ruta)` | Genera el archivo PDF y devuelve el `File` creado. Lanza `IOException` si falla. |
 
-Los métodos `imagen`, `campo` y `parrafo` devuelven el mismo documento, por lo que se encadenan uno detrás de otro. Los elementos aparecen en el PDF **en el mismo orden en que se agregan**.
+Uso general, en tres momentos:
+
+```java
+DocumentoPDF documento = new DocumentoPDF("Título");   // 1. se crea el objeto
+documento.campo("Etiqueta", "valor");                    // 2. se le agrega contenido
+documento.guardar("archivo.pdf");                        // 3. se genera el archivo
+```
+
+Los elementos aparecen en el PDF **en el mismo orden en que se agregan**: si `imagen(...)` se llama antes que los campos, la foto queda arriba.
 
 ## 4. Paso a paso: PDF de un objeto `Usuario`
 
@@ -153,20 +161,28 @@ import javax.swing.JOptionPane;
 ```java
 private void generarPdf() {
     try {
-        File pdf = new DocumentoPDF("Ficha de usuario")
-                .imagen(usuario.getRutaFoto())
-                .campo("Id", usuario.getId())
-                .campo("Tipo de identificación", usuario.getTipoIdentificacion())
-                .campo("Número de identificación", usuario.getNumeroIdentificacion())
-                .campo("Primer nombre", usuario.getPrimerNombre())
-                .campo("Segundo nombre", usuario.getSegundoNombre())
-                .campo("Primer apellido", usuario.getPrimerApellido())
-                .campo("Segundo apellido", usuario.getSegundoApellido())
-                .campo("Username", usuario.getUsername())
-                .campo("Teléfono", usuario.getTelefono())
-                .campo("Correo", usuario.getCorreo())
-                .guardar("usuario-" + usuario.getId() + ".pdf");
+        // 1. Crear el documento con su título
+        DocumentoPDF documento = new DocumentoPDF("Ficha de usuario");
 
+        // 2. Agregar la foto (queda arriba porque se agrega primero)
+        documento.imagen(usuario.getRutaFoto());
+
+        // 3. Agregar un campo por cada atributo, excepto la contraseña
+        documento.campo("Id", usuario.getId());
+        documento.campo("Tipo de identificación", usuario.getTipoIdentificacion());
+        documento.campo("Número de identificación", usuario.getNumeroIdentificacion());
+        documento.campo("Primer nombre", usuario.getPrimerNombre());
+        documento.campo("Segundo nombre", usuario.getSegundoNombre());
+        documento.campo("Primer apellido", usuario.getPrimerApellido());
+        documento.campo("Segundo apellido", usuario.getSegundoApellido());
+        documento.campo("Username", usuario.getUsername());
+        documento.campo("Teléfono", usuario.getTelefono());
+        documento.campo("Correo", usuario.getCorreo());
+
+        // 4. Generar el archivo PDF
+        File pdf = documento.guardar("usuario-" + usuario.getId() + ".pdf");
+
+        // 5. Avisar y abrir el PDF
         JOptionPane.showMessageDialog(this, "PDF generado: " + pdf.getAbsolutePath());
         Desktop.getDesktop().open(pdf);
 
@@ -180,14 +196,15 @@ Explicación línea por línea:
 
 | Línea | Qué hace |
 |---|---|
-| `new DocumentoPDF("Ficha de usuario")` | Crea el documento con su título. |
-| `.imagen(usuario.getRutaFoto())` | Inserta la foto guardada en el objeto. Se escala a un máximo de 160 × 200 puntos sin deformarse. |
-| `.campo("Id", usuario.getId())` | Escribe «**Id:** 15». Acepta números directamente. |
-| `.campo("Segundo nombre", ...)` | Si el atributo es `null` o vacío, la etiqueta aparece con el valor en blanco. |
+| `DocumentoPDF documento = new DocumentoPDF("Ficha de usuario");` | Crea el objeto `documento`. El texto entre paréntesis es el título del PDF. Todavía no existe ningún archivo. |
+| `documento.imagen(usuario.getRutaFoto());` | Agrega la foto a partir de la ruta guardada en el usuario. Se escala a un máximo de 160 × 200 puntos sin deformarse. |
+| `documento.campo("Id", usuario.getId());` | Agrega la línea «**Id:** 15». El primer valor es la etiqueta; el segundo, el dato. Acepta texto o números. |
+| `documento.campo("Segundo nombre", usuario.getSegundoNombre());` | Si el atributo es `null` o vacío, la etiqueta aparece con el valor en blanco. El programa no falla. |
 | — | `getPassword()` **no se llama**: la contraseña no va en el PDF. |
-| `.guardar("usuario-" + usuario.getId() + ".pdf")` | Crea el archivo, por ejemplo `usuario-15.pdf`, en la carpeta del proyecto. |
-| `Desktop.getDesktop().open(pdf)` | Abre el PDF con el visor predeterminado del sistema (Windows o Linux). |
-| `catch (IOException e)` | Se ejecuta si la foto ya no existe en esa ruta, si no es una imagen o si el archivo no se puede escribir. |
+| `File pdf = documento.guardar("usuario-" + usuario.getId() + ".pdf");` | **Aquí se crea el archivo**, por ejemplo `usuario-15.pdf`, en la carpeta del proyecto. Devuelve un `File` con la ubicación del archivo. |
+| `JOptionPane.showMessageDialog(...)` | Muestra la ruta completa del PDF generado. |
+| `Desktop.getDesktop().open(pdf);` | Abre el PDF con el visor predeterminado del sistema (Windows o Linux). |
+| `try { ... } catch (IOException e) { ... }` | `guardar(...)` exige `try` / `catch`. El `catch` se ejecuta si la foto ya no existe en esa ruta, si no es una imagen o si el archivo no se puede escribir. |
 
 ### 4.6. Prueba
 
@@ -232,7 +249,23 @@ carpeta.mkdirs();
 documento.guardar(new File(carpeta, "usuario-" + usuario.getId() + ".pdf"));
 ```
 
-### 4.8. Repositorio del proyecto
+### 4.8. Forma encadenada (opcional)
+
+Los métodos `imagen`, `campo` y `parrafo` terminan con `return this;`, es decir, **devuelven el mismo documento**. Por eso se puede llamar el siguiente método directamente sobre el resultado del anterior, sin repetir el nombre de la variable:
+
+```java
+File pdf = new DocumentoPDF("Ficha de usuario")
+        .imagen(usuario.getRutaFoto())
+        .campo("Id", usuario.getId())
+        .campo("Correo", usuario.getCorreo())
+        .guardar("usuario-" + usuario.getId() + ".pdf");
+```
+
+El resultado es **idéntico** al del paso 4.5. Es la misma técnica de `StringBuilder`: `sb.append("a").append("b")`.
+
+La forma paso a paso del 4.5 es la recomendada: se lee una instrucción por línea y permite poner un `if` en la mitad, como en la variante «Usuario sin foto».
+
+### 4.9. Repositorio del proyecto
 
 Los PDF generados **no se suben al repositorio**. Se excluyen agregando esta línea al archivo `.gitignore` del proyecto:
 
